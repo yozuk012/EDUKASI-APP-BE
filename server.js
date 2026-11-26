@@ -38,29 +38,29 @@ const authRoutes = require("./src/routes/authRoutes"); // ✅ TAMBAHAN BARU - AU
 const app = express();
 const PORT = process.env.PORT || 5000; // Default ke 5000 agar sesuai .env
 
-// --- UPDATE UTAMA: CORS PINTAR (HYBRID: WHITELIST + PATTERN MATCHING) ---
-// Domain spesifik yang wajib diizinkan
-const ALLOWED_ORIGINS = [
-  'http://localhost:5173',                           // Development lokal FE (Vite default)
-  'http://localhost:3000',                           // Alternatif port dev
-  'http://localhost:5000',                           // BE lokal
-  'https://app-edu.demo.achmaldalino.my.id',         // ✅ Custom domain production
-];
-
-// Fungsi validasi origin (hybrid: whitelist + pattern)
+// ==========================================
+// 🔒 CORS PINTAR — PATTERN MATCHING (ANTI-TYPO)
+// ==========================================
+// Daripada daftar manual (rawan typo), kita pakai pattern:
+//  - *.vercel.app           → semua FE/BE Vercel (production + preview)
+//  - *.achmadaldino.my.id   → semua custom domain kamu (app-edu, api, dst)
+//  - localhost / 127.0.0.1  → development lokal
+// ==========================================
 const isOriginAllowed = (origin) => {
-  // 1. Cek whitelist eksplisit
-  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  // 1. Request tanpa origin (Postman, curl, serverless internal) → izinkan
+  if (!origin) return true;
 
-  // 2. Izinkan SEMUA subdomain *.vercel.app (production + preview deployment)
-  //    Contoh yang cocok:
-  //    - https://edukasi-app-fe.vercel.app (FE production)
-  //    - https://edukasi-app-fe-git-main-aldino13.vercel.app (FE preview)
-  //    - https://edukasi-app-be.vercel.app (BE production)
-  if (origin && origin.endsWith('.vercel.app')) return true;
+  // 2. Semua subdomain *.vercel.app (FE production, preview, BE)
+  //    Contoh: edukasi-app-fe.vercel.app, edukasi-app-fe-git-main-aldino13.vercel.app
+  if (origin.endsWith('.vercel.app')) return true;
 
-  // 3. Izinkan localhost dengan port apapun (untuk fleksibilitas dev)
-  if (origin && (origin.includes('localhost:') || origin.includes('127.0.0.1:'))) return true;
+  // 3. ✅ SEMUA subdomain custom domain kamu
+  //    Contoh: app-edu.demo.achmadaldino.my.id, api.achmadaldino.my.id
+  //    (Pattern ini kebal typo — tidak perlu update kalau tambah subdomain baru)
+  if (origin.endsWith('.achmadaldino.my.id')) return true;
+
+  // 4. Localhost dengan port apapun (dev fleksibel)
+  if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) return true;
 
   return false;
 };
@@ -68,12 +68,6 @@ const isOriginAllowed = (origin) => {
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Izinkan request tanpa origin (Postman, curl, mobile app, serverless internal)
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      // Cek apakah origin diizinkan
       if (isOriginAllowed(origin)) {
         callback(null, true);
       } else {
