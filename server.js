@@ -38,24 +38,43 @@ const authRoutes = require("./src/routes/authRoutes"); // ✅ TAMBAHAN BARU - AU
 const app = express();
 const PORT = process.env.PORT || 5000; // Default ke 5000 agar sesuai .env
 
-// --- UPDATE UTAMA: CORS PINTAR (DITAMBAHKAN CUSTOM DOMAIN) ---
+// --- UPDATE UTAMA: CORS PINTAR (HYBRID: WHITELIST + PATTERN MATCHING) ---
+// Domain spesifik yang wajib diizinkan
 const ALLOWED_ORIGINS = [
-  'http://localhost:5173',                           // Development lokal FE
+  'http://localhost:5173',                           // Development lokal FE (Vite default)
   'http://localhost:3000',                           // Alternatif port dev
-  'https://edukasi-app-fe-git-main-aldino13.vercel.app', // Preview Vercel FE
+  'http://localhost:5000',                           // BE lokal
   'https://app-edu.demo.achmaldalino.my.id',         // ✅ Custom domain production
 ];
+
+// Fungsi validasi origin (hybrid: whitelist + pattern)
+const isOriginAllowed = (origin) => {
+  // 1. Cek whitelist eksplisit
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+
+  // 2. Izinkan SEMUA subdomain *.vercel.app (production + preview deployment)
+  //    Contoh yang cocok:
+  //    - https://edukasi-app-fe.vercel.app (FE production)
+  //    - https://edukasi-app-fe-git-main-aldino13.vercel.app (FE preview)
+  //    - https://edukasi-app-be.vercel.app (BE production)
+  if (origin && origin.endsWith('.vercel.app')) return true;
+
+  // 3. Izinkan localhost dengan port apapun (untuk fleksibilitas dev)
+  if (origin && (origin.includes('localhost:') || origin.includes('127.0.0.1:'))) return true;
+
+  return false;
+};
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Izinkan request tanpa origin (Postman, curl, mobile app)
+      // Izinkan request tanpa origin (Postman, curl, mobile app, serverless internal)
       if (!origin) {
         return callback(null, true);
       }
-      
-      // Cek apakah origin ada di whitelist
-      if (ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+
+      // Cek apakah origin diizinkan
+      if (isOriginAllowed(origin)) {
         callback(null, true);
       } else {
         console.warn(`⚠️ CORS diblokir untuk origin: ${origin}`);
@@ -65,7 +84,7 @@ app.use(
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
-    maxAge: 86400, // Cache preflight request selama 24 jam
+    maxAge: 86400, // Cache preflight request selama 24 jam (optimasi performa)
   }),
 );
 // ---------------------------------
