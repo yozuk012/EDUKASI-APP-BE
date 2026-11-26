@@ -38,23 +38,34 @@ const authRoutes = require("./src/routes/authRoutes"); // ✅ TAMBAHAN BARU - AU
 const app = express();
 const PORT = process.env.PORT || 5000; // Default ke 5000 agar sesuai .env
 
-// --- UPDATE UTAMA: CORS PINTAR ---
+// --- UPDATE UTAMA: CORS PINTAR (DITAMBAHKAN CUSTOM DOMAIN) ---
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',                           // Development lokal FE
+  'http://localhost:3000',                           // Alternatif port dev
+  'https://edukasi-app-fe-git-main-aldino13.vercel.app', // Preview Vercel FE
+  'https://app-edu.demo.achmaldalino.my.id',         // ✅ Custom domain production
+];
+
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Izinkan request jika tidak ada origin (seperti Postman), atau dari localhost, atau dari subdomain vercel manapun
-      if (
-        !origin ||
-        origin.includes("localhost") ||
-        origin.includes("127.0.0.1") ||
-        origin.includes("vercel.app")
-      ) {
+      // Izinkan request tanpa origin (Postman, curl, mobile app)
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      // Cek apakah origin ada di whitelist
+      if (ALLOWED_ORIGINS.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        callback(new Error("Diblokir oleh CORS"));
+        console.warn(`⚠️ CORS diblokir untuk origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
       }
     },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
+    maxAge: 86400, // Cache preflight request selama 24 jam
   }),
 );
 // ---------------------------------
