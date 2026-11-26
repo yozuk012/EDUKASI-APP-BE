@@ -1,5 +1,26 @@
+// 1. Load environment variables PALING AWAL
 require("dotenv").config();
+
+// ==========================================
+// 🛡️ MAGIC PATCH: Backward Compatibility untuk File Lama
+// ==========================================
+// Memaksa Node.js untuk mengisi variabel yang salah ketik (typo) 
+// di file-file lama dengan nilai yang benar, secara global.
+if (!process.env.SUPABASE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  process.env.SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
+if (!process.env.SUPABASE_SERVICE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  process.env.SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+}
+// Cadangan: jika ada file yang tidak sengaja memakai prefix VITE_ di backend
+if (!process.env.VITE_SUPABASE_ANON_KEY && process.env.SUPABASE_ANON_KEY) {
+  process.env.VITE_SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+}
+// ==========================================
+
+// 2. Paksa Node.js menggunakan IPv4 (penting untuk Windows & Vercel)
 require("dns").setDefaultResultOrder("ipv4first");
+
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -15,7 +36,7 @@ const partgameRoutes = require("./src/routes/partgameRoutes");
 const authRoutes = require("./src/routes/authRoutes"); // ✅ TAMBAHAN BARU - AUTH ROUTES
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000; // Default ke 5000 agar sesuai .env
 
 // --- UPDATE UTAMA: CORS PINTAR ---
 app.use(
@@ -40,7 +61,10 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(path.join(__dirname, "src/uploads")));
+
+// Pastikan folder uploads ada (opsional, untuk menghindari error jika folder belum dibuat)
+const uploadDir = path.join(__dirname, "src/uploads");
+// app.use("/uploads", express.static(uploadDir)); // Uncomment jika kamu masih pakai local storage
 
 // Rute API
 app.use("/api/auth", authRoutes); // ✅ TAMBAHAN BARU - AUTH ROUTES (diletakkan di atas)
